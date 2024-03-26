@@ -147,6 +147,38 @@ func (db *Db) Put(key []byte, value []byte) error {
 	return nil
 }
 
+func (db *Db) delete(key []byte) error {
+	db.lock.Lock()
+	defer db.lock.Unlock()
+
+	// 校验key是否合法
+	if len(key) == 0 {
+		return errors.New("key为空")
+	}
+
+	// 判断key是否在内存中存在
+	if db.index.Get(key) == nil {
+		return errors.New("key不存在")
+	}
+
+	// 新建一个LogRecord并写入到磁盘中 在合并时再将墓碑值修改
+	logRecord := &data.LogRecord{
+		Key:  key,
+		Type: data.Deleted,
+	}
+
+	_, err := db.appendLogRecord(logRecord)
+
+	if err != nil {
+		return err
+	}
+
+	// 删除内存中的索引
+	db.index.Delete(key)
+
+	return nil
+}
+
 func (db *Db) appendLogRecord(logRecord *data.LogRecord) (*data.LogRecordPos, error) {
 	db.lock.Lock()
 	defer db.lock.Unlock()
