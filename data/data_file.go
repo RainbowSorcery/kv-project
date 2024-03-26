@@ -15,8 +15,8 @@ func (fileData *FileData) Write(data []byte, offset *int64) {
 
 }
 
-func (fileData *FileData) Read(pos int64) *LogRecord {
-	return nil
+func (fileData *FileData) Read(pos int64) (*LogRecord, int64, error) {
+	return nil, 0, nil
 }
 
 func OpenFileData(path string, fileId uint32) (*FileData, error) {

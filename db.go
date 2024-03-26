@@ -2,6 +2,7 @@ package kv_database
 
 import (
 	"errors"
+	"io"
 	"kv-database/data"
 	"kv-database/index"
 	"os"
@@ -12,11 +13,16 @@ import (
 )
 
 type Db struct {
-	option     option
-	lock       *sync.RWMutex
+	// 系统配置
+	option option
+	// 锁
+	lock *sync.RWMutex
+	// 活动文件
 	activeFile *data.FileData
-	oldFile    map[uint32]*data.FileData
-	index      index.Indexer
+	// 老文件列表 只允许读 不允许写
+	oldFile map[uint32]*data.FileData
+	// 内存中存储的索引信息
+	index index.Indexer
 }
 
 func open(option option) (*Db, error) {
@@ -38,7 +44,41 @@ func open(option option) (*Db, error) {
 		return nil, err
 	}
 
+	// 读取活动文件 并记录上次写文件的位置
+	offset := readFileData(db, db.activeFile)
+	db.activeFile.WriteOffset = offset
+
+	// 读取非活动文件
+	for _, oldFileData := range db.oldFile {
+		readFileData(db, oldFileData)
+	}
+
 	return db, nil
+}
+
+func readFileData(db *Db, activeFile *data.FileData) int64 {
+	// 根据偏移读取我文件内容 如果文件内容EOF了，那么表示文件读取完毕了
+
+	var offset int64 = 0
+	for {
+		logRecord, size, err := activeFile.Read(offset)
+		if err == io.EOF {
+			break
+		}
+
+		// 如果logRecord是未被删除的 那么加入到索引内存中 否则删除
+		if logRecord.Type == data.Normal {
+			db.index.Put(logRecord.Key, &data.LogRecordPos{
+				FileId: db.activeFile.FileId,
+				Pos:    offset,
+			})
+		} else {
+			db.index.Delete(logRecord.Key)
+		}
+		// 计算下个record偏移
+		offset += size
+	}
+	return offset
 }
 
 func (db *Db) LoadDb() error {
@@ -180,7 +220,10 @@ func (db *Db) read(key []byte) ([]byte, error) {
 		return nil, errors.New("文件索引不存在")
 	}
 
-	logRecord := fileData.Read(keyIndex.Pos)
+	logRecord, _, err := fileData.Read(keyIndex.Pos)
+	if err != nil {
+		return nil, err
+	}
 
 	if logRecord.Type == data.Deleted {
 		return nil, nil
