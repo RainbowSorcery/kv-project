@@ -200,11 +200,11 @@ func (db *Db) appendLogRecord(logRecord *data.LogRecord) (*data.LogRecordPos, er
 	}
 
 	// 将记录对象序列化为二进制字节数组
-	encodingData, size := data.EncodingLogRecord(logRecord)
+	encodingData, _ := data.EncodingLogRecord(logRecord)
 
 	offset := db.activeFile.WriteOffset
 
-	db.activeFile.Write(encodingData, size)
+	db.activeFile.Write(encodingData)
 
 	return &data.LogRecordPos{
 		FileId: db.activeFile.FileId,
