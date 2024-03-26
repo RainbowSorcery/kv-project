@@ -6,10 +6,13 @@ import (
 )
 
 func TestFileIO_Read(t *testing.T) {
-	fileIo, err := Create_file_io("test.txt")
+	fileIo, err := CreateFileIo("test.txt")
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	fileIo.Write([]byte("hello world"))
+	_, err = fileIo.Write([]byte("hello world"))
+	if err != nil {
+		return
+	}
 }

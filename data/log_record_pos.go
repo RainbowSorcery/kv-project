@@ -13,6 +13,13 @@ type LogRecordPos struct {
 	Pos    int64  // 数据偏移
 }
 
+type LogRecordHeader struct {
+	Crc       uint32
+	Type      LogRecordType
+	KeySize   uint32
+	ValueSize uint32
+}
+
 type LogRecord struct {
 	// key
 	Key []byte
@@ -26,4 +33,9 @@ type LogRecord struct {
 func EncodingLogRecord(logRecord *LogRecord) ([]byte, *int64) {
 
 	return nil, nil
+}
+
+// DecodingLogRecordHeader 反序列化LogRecordHeader
+func DecodingLogRecordHeader(buffer []byte) *LogRecordHeader {
+	return nil
 }
