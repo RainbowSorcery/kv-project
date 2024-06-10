@@ -1,4 +1,4 @@
-package kv_database
+package main
 
 type option struct {
 	// 文件存储目录

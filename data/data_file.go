@@ -34,6 +34,10 @@ func (fileData *FileData) Write(data []byte) error {
 func (fileData *FileData) Read(pos int64) (*LogRecord, int64, error) {
 	// 读取header header中存储crc冗余校验、record类型、key长度、value长度
 	logRecordLengthSize := int64(binary.MaxVarintLen32*3 + 1)
+	if fileData == nil {
+		return nil, 0, errors.New("fileData is nil")
+	}
+
 	buffer, err := fileData.readNByte(pos, logRecordLengthSize)
 	if err != nil {
 		return nil, 0, err
@@ -86,7 +90,33 @@ func (fileData *FileData) readNByte(pos int64, length int64) ([]byte, error) {
 
 // ReadLogRecord 根据偏移获取logRecord
 func (fileData *FileData) ReadLogRecord(pos int64) (logRecord *LogRecord, err error) {
-	return nil, nil
+	headerDataBuffer, err := fileData.readNByte(pos, 13)
+	if err != nil {
+		return nil, err
+	}
+
+	// 根据最长长度解码header
+	header := DecodingLogRecordHeader(headerDataBuffer)
+
+	if header == nil {
+		return nil, errors.New("header为空")
+	}
+
+	// 拿到header之后就可以获取到logRecord的值了
+	var keyIndex = int64(binary.PutVarint(make([]byte, 20), int64(header.KeySize)))
+	var valueIndex = int64(binary.PutVarint(make([]byte, 20), int64(header.ValueSize)))
+	recordByteArray, err := fileData.readNByte(pos+4+1+keyIndex+valueIndex, int64(header.KeySize+header.ValueSize))
+	if err != nil {
+		return nil, err
+	}
+
+	logRecord = &LogRecord{
+		Key:   recordByteArray[:header.KeySize],
+		Value: recordByteArray[header.KeySize : header.ValueSize+header.KeySize],
+		Type:  header.Type,
+	}
+
+	return logRecord, nil
 }
 
 func OpenFileData(path string, fileId uint32) (*FileData, error) {

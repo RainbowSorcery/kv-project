@@ -1,7 +1,8 @@
-package kv_database
+package main
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"kv-database/data"
 	"kv-database/index"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -40,6 +42,7 @@ func open(option option) (*Db, error) {
 		index:      index.NewBtree(),
 	}
 
+	// 初始化db
 	err := db.LoadDb()
 	if err != nil {
 		return nil, err
@@ -58,10 +61,13 @@ func open(option option) (*Db, error) {
 }
 
 func readFileData(db *Db, activeFile *data.FileData) int64 {
-	// 根据偏移读取我文件内容 如果文件内容EOF了，那么表示文件读取完毕了
+	// 根据偏移读取文件内容 如果文件内容EOF了，那么表示文件读取完毕了
 	var offset int64 = 0
 	for {
 		logRecord, size, err := activeFile.Read(offset)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
 		if err == io.EOF {
 			break
 		}
@@ -82,7 +88,6 @@ func readFileData(db *Db, activeFile *data.FileData) int64 {
 }
 
 func (db *Db) LoadDb() error {
-
 	// 判断目录是否存在 如果不存在则创建
 	_, err := os.Stat(db.option.DirPath)
 	if os.IsNotExist(err) {
@@ -96,30 +101,42 @@ func (db *Db) LoadDb() error {
 	if err != nil {
 		return err
 	}
-	// 对目录下的文件进行排序
-	sort.Slice(fileDataArr, func(i, j int) bool {
-		return fileDataArr[i].Name() < fileDataArr[j].Name()
-	})
 
-	for i, file := range fileDataArr {
-		fileExt := filepath.Ext(file.Name())
-		if fileExt == "data" && !file.IsDir() {
-			fileId, err := strconv.ParseUint(file.Name(), 10, 32)
-			if err != nil {
-				return err
-			}
-			fileData, err := data.OpenFileData(db.option.DirPath, uint32(fileId))
-			if err != nil {
-				return err
-			}
+	// 如果目录下没有文件 那么初始化一个活动文件
+	if fileDataArr == nil || len(fileDataArr) == 0 {
+		fileData, err := data.OpenFileData(db.option.DirPath, uint32(0))
+		if err != nil {
+			return err
+		}
+		db.activeFile = fileData
+	} else {
+		// 对目录下的文件进行排序
+		sort.Slice(fileDataArr, func(i, j int) bool {
+			return fileDataArr[i].Name() < fileDataArr[j].Name()
+		})
 
-			if i == len(fileDataArr) {
-				db.activeFile = fileData
-			} else {
-				db.oldFile[uint32(fileId)] = fileData
+		for i, file := range fileDataArr {
+			fileExt := filepath.Ext(file.Name())
+			if fileExt == ".data" && !file.IsDir() {
+				fileId, err := strconv.ParseUint(strings.ReplaceAll(file.Name(), ".data", ""), 10, 32)
+				if err != nil {
+					return err
+				}
+				fileData, err := data.OpenFileData(db.option.DirPath, uint32(fileId))
+				if err != nil {
+					return err
+				}
+
+				// id最大的代表该文件为活跃文件 文件索引从0开始 所以需要 - 1
+				if i == len(fileDataArr)-1 {
+					db.activeFile = fileData
+				} else {
+					db.oldFile[uint32(fileId)] = fileData
+				}
 			}
 		}
 	}
+
 	return nil
 }
 
