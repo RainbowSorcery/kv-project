@@ -12,6 +12,7 @@ import (
 	"sync"
 )
 
+// Db bitcask实例 面向用户的接口
 type Db struct {
 	// 系统配置
 	option option
@@ -58,7 +59,6 @@ func open(option option) (*Db, error) {
 
 func readFileData(db *Db, activeFile *data.FileData) int64 {
 	// 根据偏移读取我文件内容 如果文件内容EOF了，那么表示文件读取完毕了
-
 	var offset int64 = 0
 	for {
 		logRecord, size, err := activeFile.Read(offset)
@@ -129,19 +129,20 @@ func (db *Db) Put(key []byte, value []byte) error {
 		return errors.New("key为空")
 	}
 
-	// 判断activeFile是否存在 如果不存在的话则创建
-
+	// 构建logRecord
 	logRecord := &data.LogRecord{
 		Key:   key,
 		Value: value,
 		Type:  data.Normal,
 	}
 
+	// 向文件追加数据
 	logRecordPos, err := db.appendLogRecord(logRecord)
 	if err != nil {
 		return errors.New("文件追加失败")
 	}
 
+	// 将追加的索引添加内存中
 	db.index.Put(key, logRecordPos)
 
 	return nil
@@ -179,6 +180,7 @@ func (db *Db) delete(key []byte) error {
 	return nil
 }
 
+// 将KV数据追加到文件中
 func (db *Db) appendLogRecord(logRecord *data.LogRecord) (*data.LogRecordPos, error) {
 	db.lock.Lock()
 	defer db.lock.Unlock()
@@ -204,7 +206,11 @@ func (db *Db) appendLogRecord(logRecord *data.LogRecord) (*data.LogRecordPos, er
 
 	offset := db.activeFile.WriteOffset
 
-	db.activeFile.Write(encodingData)
+	// 写入到文件中
+	err := db.activeFile.Write(encodingData)
+	if err != nil {
+		return nil, err
+	}
 
 	return &data.LogRecordPos{
 		FileId: db.activeFile.FileId,
@@ -262,4 +268,47 @@ func (db *Db) read(key []byte) ([]byte, error) {
 	} else {
 		return logRecord.Value, nil
 	}
+}
+
+// Get 根据key获取logRecord
+func (db *Db) Get(key []byte) (*data.LogRecord, error) {
+	db.lock.RLock()
+	defer db.lock.RUnlock()
+
+	// 在内存中查找key是否存在 如果不存在则直接抛出异常
+	keyIndex := db.index.Get(key)
+
+	if keyIndex == nil {
+		return nil, errors.New("索引不存在")
+	}
+
+	var fileData *data.FileData
+
+	// 判断文件是否为活跃文件
+	if keyIndex.FileId == db.activeFile.FileId {
+		fileData = db.activeFile
+	} else {
+		// 从old file中获取文件数据
+		fileData = db.oldFile[keyIndex.FileId]
+	}
+
+	// 判断文件是否存在
+	if fileData == nil {
+		return nil, errors.New("文件不存在")
+	}
+
+	record, err := fileData.ReadLogRecord(keyIndex.Pos)
+	if err != nil {
+		return nil, err
+	}
+
+	if record == nil {
+		return nil, errors.New("log record不存在")
+	}
+
+	if record.Type == data.Deleted {
+		return nil, errors.New("key已删除")
+	}
+
+	return record, nil
 }

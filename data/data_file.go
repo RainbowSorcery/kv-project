@@ -84,6 +84,11 @@ func (fileData *FileData) readNByte(pos int64, length int64) ([]byte, error) {
 	return buffer, nil
 }
 
+// ReadLogRecord 根据偏移获取logRecord
+func (fileData *FileData) ReadLogRecord(pos int64) (logRecord *LogRecord, err error) {
+	return nil, nil
+}
+
 func OpenFileData(path string, fileId uint32) (*FileData, error) {
 	// 拼接路径
 	dataFilePath := path + fmt.Sprintf("%09d", fileId) + ".data"
