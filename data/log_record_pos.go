@@ -68,10 +68,10 @@ func EncodingLogRecord(logRecord *LogRecord) ([]byte, int64) {
 }
 
 // DecodingLogRecordHeader 反序列化LogRecordHeader
-func DecodingLogRecordHeader(buffer []byte) *LogRecordHeader {
+func DecodingLogRecordHeader(buffer []byte) (*LogRecordHeader, int64) {
 	// 判断字节大小是否大于4，如果不不大于4表示不足CRC冗余校验和，直接抛出异常即可
 	if len(buffer) < 4 {
-		return nil
+		return nil, 0
 	}
 
 	// varint编码读取第一个字节
@@ -87,7 +87,7 @@ func DecodingLogRecordHeader(buffer []byte) *LogRecordHeader {
 		KeySize:   uint32(keySize),
 		ValueSize: uint32(valueSize),
 	}
-	return logRecordHeader
+	return logRecordHeader, int64(4 + 1 + 5 + index)
 }
 
 // GetLogRecordCRC 获取crc校验和

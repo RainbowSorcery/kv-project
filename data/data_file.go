@@ -43,7 +43,7 @@ func (fileData *FileData) Read(pos int64) (*LogRecord, int64, error) {
 		return nil, 0, err
 	}
 
-	recordHeader := DecodingLogRecordHeader(buffer)
+	recordHeader, size := DecodingLogRecordHeader(buffer)
 	// 判断是否到达文件末尾，如果读取不到header数据旧表示到末尾了
 	if recordHeader == nil {
 		return nil, 0, io.EOF
@@ -54,7 +54,7 @@ func (fileData *FileData) Read(pos int64) (*LogRecord, int64, error) {
 	}
 
 	// 读取key value数据
-	pos += logRecordLengthSize
+	pos += size
 
 	recordDataBuffer, err := fileData.readNByte(pos, int64(recordHeader.KeySize+recordHeader.ValueSize))
 	if err != nil {
@@ -68,7 +68,7 @@ func (fileData *FileData) Read(pos int64) (*LogRecord, int64, error) {
 	}
 
 	// crc冗余校验
-	crc := GetLogRecordCRC(logRecord, buffer[crc32.Size:logRecordLengthSize])
+	crc := GetLogRecordCRC(logRecord, buffer[crc32.Size:size])
 
 	if crc != recordHeader.Crc {
 		return nil, 0, errors.New("crc校验失败")
@@ -96,16 +96,14 @@ func (fileData *FileData) ReadLogRecord(pos int64) (logRecord *LogRecord, err er
 	}
 
 	// 根据最长长度解码header
-	header := DecodingLogRecordHeader(headerDataBuffer)
+	header, size := DecodingLogRecordHeader(headerDataBuffer)
 
 	if header == nil {
 		return nil, errors.New("header为空")
 	}
 
 	// 拿到header之后就可以获取到logRecord的值了
-	var keyIndex = int64(binary.PutVarint(make([]byte, 20), int64(header.KeySize)))
-	var valueIndex = int64(binary.PutVarint(make([]byte, 20), int64(header.ValueSize)))
-	recordByteArray, err := fileData.readNByte(pos+4+1+keyIndex+valueIndex, int64(header.KeySize+header.ValueSize))
+	recordByteArray, err := fileData.readNByte(pos+size, int64(header.KeySize+header.ValueSize))
 	if err != nil {
 		return nil, err
 	}
