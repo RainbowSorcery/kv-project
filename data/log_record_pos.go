@@ -78,8 +78,11 @@ func DecodingLogRecordHeader(buffer []byte) (*LogRecordHeader, int64) {
 	//如果第一个字节为1那么表示还有剩余八个字节可读，
 	//如果第一个字节为0，那么表示已经是字节序列末尾了
 	//所以varint可以不知道字节长度就能读取字节数组
-	keySize, index := binary.Varint(buffer[5:])
-	valueSize, _ := binary.Varint(buffer[5+index:])
+	var index = 0
+	keySize, writeSize := binary.Varint(buffer[5:])
+	index += writeSize
+	valueSize, writeSize := binary.Varint(buffer[5+index:])
+	index += writeSize
 
 	logRecordHeader := &LogRecordHeader{
 		Crc:       binary.LittleEndian.Uint32(buffer[:4]),
@@ -87,7 +90,7 @@ func DecodingLogRecordHeader(buffer []byte) (*LogRecordHeader, int64) {
 		KeySize:   uint32(keySize),
 		ValueSize: uint32(valueSize),
 	}
-	return logRecordHeader, int64(4 + 1 + 5 + index)
+	return logRecordHeader, int64(4 + 1 + index)
 }
 
 // GetLogRecordCRC 获取crc校验和
