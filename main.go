@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"strconv"
+)
 
 func main() {
 	db, err := open(option{
@@ -11,13 +14,17 @@ func main() {
 		panic(err)
 	}
 
-	//err = db.Put([]byte("key"), []byte("value"))
+	//for i := 0; i < 50; i++ {
+	//	err = db.Put([]byte(strconv.Itoa(i)), []byte(strconv.Itoa(i)))
+	//}
 
-	get, err := db.Get([]byte("key"))
-	if err != nil {
-		panic(err)
+	for i := 0; i < 50; i++ {
+		get, err := db.Get([]byte(strconv.Itoa(i)))
+		fmt.Println(string(get.Key))
+		fmt.Println(string(get.Value))
+		if err != nil {
+			panic(err)
+		}
 	}
 
-	fmt.Println(string(get.Key))
-	fmt.Println(string(get.Value))
 }

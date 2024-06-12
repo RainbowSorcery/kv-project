@@ -75,7 +75,7 @@ func (fileData *FileData) Read(pos int64) (*LogRecord, int64, error) {
 		return nil, 0, errors.New("crc校验失败")
 	}
 
-	return logRecord, int64(binary.MaxVarintLen32*3 + 1 + recordHeader.KeySize + recordHeader.ValueSize), nil
+	return logRecord, headerSize + int64(recordHeader.KeySize+recordHeader.ValueSize), nil
 }
 
 func (fileData *FileData) readNByte(pos int64, length int64) ([]byte, error) {
