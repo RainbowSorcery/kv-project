@@ -62,7 +62,7 @@ func open(option option) (*Db, error) {
 	for _, oldFileData := range db.oldFile {
 		_, err = readFileData(db, oldFileData)
 		if err != nil && err == io.EOF {
-			log.Printf("文件读取完毕, fileId:%d\n", db.activeFile.FileId)
+			log.Printf("文件读取完毕, fileId:%d\n", oldFileData.FileId)
 		} else if err != nil && err != io.EOF {
 			return nil, err
 		}
@@ -76,17 +76,15 @@ func readFileData(db *Db, activeFile *data.FileData) (int64, error) {
 	var offset int64 = 0
 	for {
 		logRecord, size, err := activeFile.Read(offset)
-		if err != nil {
-			return 0, err
-		}
-		if err == io.EOF {
+
+		if err != nil && err == io.EOF {
 			break
 		}
 
 		// 如果logRecord是未被删除的 那么加入到索引内存中 否则删除
 		if logRecord.Type == data.Normal {
 			db.index.Put(logRecord.Key, &data.LogRecordPos{
-				FileId: db.activeFile.FileId,
+				FileId: activeFile.FileId,
 				Pos:    offset,
 			})
 		} else {
@@ -251,7 +249,7 @@ func (db *Db) appendLogRecord(logRecord *data.LogRecord) (*data.LogRecordPos, er
 
 // 设置活动文件
 func (db *Db) setActiveFile() error {
-	activeFileId := 0
+	activeFileId := db.activeFile.FileId
 	// 如果oldFile存在的话那么activeFile的id等于oldFile的id + 1 如果oldFile不存在的话ActiveFile的id就是0
 	if db.activeFile != nil {
 		activeFileId += 1

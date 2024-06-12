@@ -13,12 +13,12 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
-	//for i := 0; i < 50; i++ {
+	//
+	//for i := 0; i < 1000; i++ {
 	//	err = db.Put([]byte(strconv.Itoa(i)), []byte(strconv.Itoa(i)))
 	//}
 
-	for i := 0; i < 50; i++ {
+	for i := 0; i < 1000; i++ {
 		get, err := db.Get([]byte(strconv.Itoa(i)))
 		fmt.Println(string(get.Key))
 		fmt.Println(string(get.Value))
