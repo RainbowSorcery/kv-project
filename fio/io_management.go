@@ -11,4 +11,7 @@ type IOManagement interface {
 
 	// Close 关闭文件
 	Close() error
+
+	// Size 获取文件大小
+	Size() int64
 }

@@ -3,7 +3,8 @@ package fio
 import "os"
 
 type FileIO struct {
-	file *os.File
+	file     *os.File
+	fileInfo os.FileInfo
 }
 
 func CreateFileIo(filePath string) (*FileIO, error) {
@@ -12,8 +13,14 @@ func CreateFileIo(filePath string) (*FileIO, error) {
 		return nil, err
 	}
 
+	fileInfo, err := os.Stat(filePath)
+	if err != nil {
+		return nil, err
+	}
+
 	return &FileIO{
-		file: file,
+		file:     file,
+		fileInfo: fileInfo,
 	}, nil
 }
 
@@ -36,4 +43,8 @@ func (fileIo *FileIO) Sync() error {
 
 func (fileIo *FileIO) Close() error {
 	return fileIo.file.Close()
+}
+
+func (fileIo *FileIO) Size() int64 {
+	return fileIo.fileInfo.Size()
 }

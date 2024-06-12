@@ -2,10 +2,10 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"kv-database/data"
 	"kv-database/index"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -49,7 +49,13 @@ func open(option option) (*Db, error) {
 	}
 
 	// 读取活动文件 并记录上次写文件的位置
-	offset := readFileData(db, db.activeFile)
+	offset, err := readFileData(db, db.activeFile)
+	if err != nil && err == io.EOF {
+		log.Printf("文件读取完毕, fileId:%d\n", db.activeFile.FileId)
+	} else if err != nil && err != io.EOF {
+		return nil, err
+	}
+
 	db.activeFile.WriteOffset = offset
 
 	// 读取非活动文件
@@ -60,13 +66,13 @@ func open(option option) (*Db, error) {
 	return db, nil
 }
 
-func readFileData(db *Db, activeFile *data.FileData) int64 {
+func readFileData(db *Db, activeFile *data.FileData) (int64, error) {
 	// 根据偏移读取文件内容 如果文件内容EOF了，那么表示文件读取完毕了
 	var offset int64 = 0
 	for {
 		logRecord, size, err := activeFile.Read(offset)
 		if err != nil {
-			fmt.Println(err.Error())
+			return 0, err
 		}
 		if err == io.EOF {
 			break
@@ -84,7 +90,7 @@ func readFileData(db *Db, activeFile *data.FileData) int64 {
 		// 计算下个record偏移
 		offset += size
 	}
-	return offset
+	return offset, nil
 }
 
 func (db *Db) LoadDb() error {
