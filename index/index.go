@@ -7,9 +7,12 @@ import (
 )
 
 type Indexer interface {
-	Put(key []byte, pos *data.LogRecordPos) bool // 设置值
-	Get(key []byte) *data.LogRecordPos           // 获取数据的位置信息
-	Delete(key []byte) bool                      // 删除kv数据
+	// Put 设置索引到内存中
+	Put(key []byte, pos *data.LogRecordPos) bool
+	// Get 获取索引信息
+	Get(key []byte) *data.LogRecordPos
+	// Delete 删除索引
+	Delete(key []byte) bool
 }
 
 type Item struct {

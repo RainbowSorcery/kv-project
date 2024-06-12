@@ -60,7 +60,12 @@ func open(option option) (*Db, error) {
 
 	// 读取非活动文件
 	for _, oldFileData := range db.oldFile {
-		readFileData(db, oldFileData)
+		_, err = readFileData(db, oldFileData)
+		if err != nil && err == io.EOF {
+			log.Printf("文件读取完毕, fileId:%d\n", db.activeFile.FileId)
+		} else if err != nil && err != io.EOF {
+			return nil, err
+		}
 	}
 
 	return db, nil
@@ -93,6 +98,7 @@ func readFileData(db *Db, activeFile *data.FileData) (int64, error) {
 	return offset, nil
 }
 
+// LoadDb 加载db文件
 func (db *Db) LoadDb() error {
 	// 判断目录是否存在 如果不存在则创建
 	_, err := os.Stat(db.option.DirPath)
@@ -146,6 +152,7 @@ func (db *Db) LoadDb() error {
 	return nil
 }
 
+// Put 添加kv
 func (db *Db) Put(key []byte, value []byte) error {
 	// 判断key是否合法
 	if len(key) == 0 {
@@ -171,7 +178,8 @@ func (db *Db) Put(key []byte, value []byte) error {
 	return nil
 }
 
-func (db *Db) delete(key []byte) error {
+// Delete 删除kv
+func (db *Db) Delete(key []byte) error {
 	db.lock.Lock()
 	defer db.lock.Unlock()
 
@@ -241,6 +249,7 @@ func (db *Db) appendLogRecord(logRecord *data.LogRecord) (*data.LogRecordPos, er
 	}, nil
 }
 
+// 设置活动文件
 func (db *Db) setActiveFile() error {
 	activeFileId := 0
 	// 如果oldFile存在的话那么activeFile的id等于oldFile的id + 1 如果oldFile不存在的话ActiveFile的id就是0
