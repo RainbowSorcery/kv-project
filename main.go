@@ -11,7 +11,7 @@ func main() {
 		panic(err)
 	}
 
-	err = db.Put([]byte("key"), []byte("value"))
+	//err = db.Put([]byte("key"), []byte("value"))
 
 	get, err := db.Get([]byte("key"))
 	if err != nil {

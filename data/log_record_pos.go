@@ -97,8 +97,8 @@ func DecodingLogRecordHeader(buffer []byte) (*LogRecordHeader, int64) {
 func GetLogRecordCRC(record *LogRecord, headerBuffer []byte) uint32 {
 	crc := crc32.ChecksumIEEE(headerBuffer)
 
-	crc32.Update(crc, crc32.IEEETable, record.Key)
-	crc32.Update(crc, crc32.IEEETable, record.Value)
+	crc = crc32.Update(crc, crc32.IEEETable, record.Key)
+	crc = crc32.Update(crc, crc32.IEEETable, record.Value)
 
 	return crc
 }

@@ -44,7 +44,8 @@ func (fileData *FileData) Read(pos int64) (*LogRecord, int64, error) {
 	}
 
 	recordHeader, size := DecodingLogRecordHeader(buffer)
-	// 判断是否到达文件末尾，如果读取不到header数据旧表示到末尾了
+	headerSize := size
+	// 判断是否到达文件末尾，如果读取不到header数据表示到末尾了
 	if recordHeader == nil {
 		return nil, 0, io.EOF
 	}
@@ -63,12 +64,12 @@ func (fileData *FileData) Read(pos int64) (*LogRecord, int64, error) {
 
 	logRecord := &LogRecord{
 		Key:   recordDataBuffer[:recordHeader.KeySize],
-		Value: recordDataBuffer[:recordHeader.ValueSize],
+		Value: recordDataBuffer[recordHeader.KeySize : recordHeader.KeySize+recordHeader.ValueSize],
 		Type:  recordHeader.Type,
 	}
 
 	// crc冗余校验
-	crc := GetLogRecordCRC(logRecord, buffer[crc32.Size:size])
+	crc := GetLogRecordCRC(logRecord, buffer[crc32.Size:headerSize])
 
 	if crc != recordHeader.Crc {
 		return nil, 0, errors.New("crc校验失败")
