@@ -1,8 +1,6 @@
 package main
 
-import (
-	"fmt"
-)
+import "fmt"
 
 func main() {
 	db, err := open(option{
@@ -13,11 +11,18 @@ func main() {
 		panic(err)
 	}
 
-	iterate := db.index.Iterate(true)
+	iterator := NewDbIterator(db, IteratorOption{
+		Reverse: false,
+		Prefix:  nil,
+	})
 
-	for !iterate.HasNext() {
-		iterate.Next()
-		fmt.Println(iterate.Value())
+	for !iterator.HasNext() {
+		key, _ := iterator.Key()
+		value, _ := iterator.Value()
+
+		fmt.Printf("key:%s value:%s\n", key, value.Value)
+
+		iterator.Next()
 	}
 
 	//

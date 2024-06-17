@@ -16,6 +16,9 @@ type Indexer interface {
 
 	// Iterate 获取迭代器
 	Iterate(reverse bool) Iterator
+
+	// Size 索引数
+	Size() int
 }
 
 type Item struct {

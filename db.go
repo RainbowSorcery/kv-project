@@ -26,8 +26,6 @@ type Db struct {
 	oldFile map[uint32]*data.FileData
 	// 内存中存储的索引信息
 	index index.Indexer
-	// 迭代器
-	iterator index.Iterator
 }
 
 func open(option option) (*Db, error) {
@@ -363,4 +361,51 @@ func (db *Db) Sync() error {
 // Close 关闭文件读写
 func (db *Db) Close() error {
 	return db.activeFile.FileManage.Close()
+}
+
+func (db *Db) ListKeys() ([][]byte, error) {
+	iterate := db.index.Iterate(false)
+	keys := make([][]byte, db.index.Size())
+
+	keyIndex := 0
+	for !iterate.HasNext() {
+		key, err := iterate.Key()
+		if err != nil {
+			return nil, err
+		}
+		keys[keyIndex] = key
+		keyIndex++
+		iterate.Next()
+	}
+
+	return keys, nil
+}
+
+func (db *Db) fold(fun func(key []byte, value []byte) bool) error {
+	db.lock.Lock()
+	defer db.lock.Unlock()
+
+	iterate := db.index.Iterate(false)
+
+	// 判断迭代器是否还有key
+	for !iterate.HasNext() {
+		key, err := iterate.Key()
+
+		if err != nil {
+			return err
+		}
+
+		value, err := db.Get(key)
+		if err != nil {
+			return err
+		}
+
+		if !fun(key, value.Value) {
+			break
+		}
+
+		iterate.Next()
+	}
+
+	return nil
 }
