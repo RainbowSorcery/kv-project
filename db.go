@@ -311,19 +311,32 @@ func (db *Db) Get(key []byte) (*data.LogRecord, error) {
 
 	// 在内存中查找key是否存在 如果不存在则直接抛出异常
 	keyIndex := db.index.Get(key)
+	record, err := db.posByLogRecord(keyIndex)
+	if err != nil {
+		return nil, err
+	}
 
-	if keyIndex == nil {
+	if record.Type == data.Deleted {
+		return nil, errors.New("key已删除")
+	}
+
+	return record, nil
+}
+
+func (db *Db) posByLogRecord(pos *data.LogRecordPos) (*data.LogRecord, error) {
+
+	if pos == nil {
 		return nil, errors.New("索引不存在")
 	}
 
 	var fileData *data.FileData
 
 	// 判断文件是否为活跃文件
-	if keyIndex.FileId == db.activeFile.FileId {
+	if pos.FileId == db.activeFile.FileId {
 		fileData = db.activeFile
 	} else {
 		// 从old file中获取文件数据
-		fileData = db.oldFile[keyIndex.FileId]
+		fileData = db.oldFile[pos.FileId]
 	}
 
 	// 判断文件是否存在
@@ -331,17 +344,13 @@ func (db *Db) Get(key []byte) (*data.LogRecord, error) {
 		return nil, errors.New("文件不存在")
 	}
 
-	record, err := fileData.ReadLogRecord(keyIndex.Pos)
+	record, err := fileData.ReadLogRecord(pos.Pos)
 	if err != nil {
 		return nil, err
 	}
 
 	if record == nil {
 		return nil, errors.New("log record不存在")
-	}
-
-	if record.Type == data.Deleted {
-		return nil, errors.New("key已删除")
 	}
 
 	return record, nil
@@ -395,11 +404,14 @@ func (db *Db) fold(fun func(key []byte, value []byte) bool) error {
 			return err
 		}
 
-		value, err := db.Get(key)
+		pos, err := iterate.Value()
 		if err != nil {
 			return err
 		}
-
+		value, err := db.posByLogRecord(pos)
+		if err != nil {
+			return err
+		}
 		if !fun(key, value.Value) {
 			break
 		}
