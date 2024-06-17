@@ -53,3 +53,8 @@ func (btree *Btree) Delete(key []byte) bool {
 
 	return true
 }
+
+func (btree *Btree) Iterate(reverse bool) Iterator {
+	btreeIterator := NewBtreeIterator(btree.tree, false)
+	return btreeIterator
+}

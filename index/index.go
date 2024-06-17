@@ -13,6 +13,9 @@ type Indexer interface {
 	Get(key []byte) *data.LogRecordPos
 	// Delete 删除索引
 	Delete(key []byte) bool
+
+	// Iterate 获取迭代器
+	Iterate(reverse bool) Iterator
 }
 
 type Item struct {

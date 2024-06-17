@@ -26,6 +26,8 @@ type Db struct {
 	oldFile map[uint32]*data.FileData
 	// 内存中存储的索引信息
 	index index.Indexer
+	// 迭代器
+	iterator index.Iterator
 }
 
 func open(option option) (*Db, error) {
@@ -224,6 +226,10 @@ func (db *Db) appendLogRecord(logRecord *data.LogRecord) (*data.LogRecordPos, er
 	// 判断文件是否到达阈值 如果到达阈值则将旧的数据文件归档，创建新的数据文件
 	if db.activeFile.WriteOffset >= db.option.FileDataSize {
 		db.oldFile[db.activeFile.FileId] = db.activeFile
+		err := db.Close()
+		if err != nil {
+			return nil, err
+		}
 
 		if err := db.setActiveFile(); err != nil {
 			return nil, err
@@ -341,4 +347,20 @@ func (db *Db) Get(key []byte) (*data.LogRecord, error) {
 	}
 
 	return record, nil
+}
+
+func (db *Db) KeyList() [][]byte {
+
+	return nil
+}
+
+// Sync 将缓冲区的数据持久化到内存中
+func (db *Db) Sync() error {
+	err := db.activeFile.FileManage.Sync()
+	return err
+}
+
+// Close 关闭文件读写
+func (db *Db) Close() error {
+	return db.activeFile.FileManage.Close()
 }
