@@ -74,13 +74,24 @@ func open(option option) (*Db, error) {
 }
 
 func readFileData(db *Db, activeFile *data.FileData) (int64, error) {
-	// 根据偏移读取文件内容 如果文件内容EOF了，那么表示文件读取完毕了
+	// 事务暂存数据
+	txCache := make(map[int64][]*data.LogRecordPos)
+
 	var offset int64 = 0
 	for {
 		logRecord, size, err := activeFile.Read(offset)
-
+		// 根据偏移读取文件内容 如果文件内容EOF了，那么表示文件读取完毕了
 		if err != nil && err == io.EOF {
 			break
+		}
+
+		// 判断事务id是否存在 如果事务id存在则
+		txNum, _ := DecodingTranKey(logRecord.Key)
+		if txNum != 0 && logRecord.Type != data.Deleted {
+			txCache[txNum] = append(txCache[txNum], &data.LogRecordPos{
+				FileId: activeFile.FileId,
+				Pos:    offset,
+			})
 		}
 
 		// 如果logRecord是未被删除的 那么加入到索引内存中 否则删除
@@ -89,9 +100,13 @@ func readFileData(db *Db, activeFile *data.FileData) (int64, error) {
 				FileId: activeFile.FileId,
 				Pos:    offset,
 			})
-		} else {
+		} else if logRecord.Type == data.Deleted {
 			db.index.Delete(logRecord.Key)
+		} else if logRecord.Type == data.TxComplete {
+			txNum, _ := DecodingTranKey(logRecord.Key)
+
 		}
+
 		// 计算下个record偏移
 		offset += size
 	}

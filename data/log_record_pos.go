@@ -8,8 +8,12 @@ import (
 type LogRecordType = byte
 
 const (
+	// Deleted 已删除
 	Deleted = 0
-	Normal  = 1
+	// Normal 正常
+	Normal = 1
+	// TxComplete 事务完成
+	TxComplete = 2
 )
 
 // LogRecordPos 数据内存索引信息 主要是根据key找到指定文件的指定位置读取指定数据

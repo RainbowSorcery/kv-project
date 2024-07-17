@@ -8,6 +8,9 @@ import (
 	"sync/atomic"
 )
 
+// 事务完成前缀
+const txComPrefix = "tx_com_prefix"
+
 // BatchWrite 批量原子写
 type BatchWrite struct {
 	// 数据库对象
@@ -81,21 +84,57 @@ func (batch *BatchWrite) Commit() error {
 
 	tranNum := atomic.AddUint64(batch.Db.TranNum, 1)
 
+	logRecordPositionMap := make(map[string]*data.LogRecordPos)
+
 	for key := range batch.PendingWrites {
 		record := batch.PendingWrites[key]
 		if record != nil {
-			batch.Db.appendLogRecord(&data.LogRecord{
-				Key:   ParseTranKey(record.Key, tranNum),
+			position, err := batch.Db.appendLogRecord(&data.LogRecord{
+				Key:   EncodingTranKey(record.Key, tranNum),
 				Type:  record.Type,
 				Value: record.Value,
 			})
+
+			// 记录索引偏移信息 以便于保存到硬盘中
+			logRecordPositionMap[string(record.Key)] = position
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// 所有记录追加到磁盘后需要添加一条记录用于表示事务写完成
+	txCompRecord := &data.LogRecord{
+		Key:   EncodingTranKey([]byte(txComPrefix), tranNum),
+		Value: nil,
+		Type:  data.TxComplete,
+	}
+
+	txCompRecordPos, err := batch.Db.appendLogRecord(txCompRecord)
+	if err != nil {
+		return err
+	}
+
+	logRecordPositionMap[string(txCompRecord.Key)] = txCompRecordPos
+
+	// 强制刷盘
+	err = batch.Db.activeFile.FileManage.Sync()
+	if err != nil {
+		return err
+	}
+
+	// 将更改的索引信息刷新到内存中
+	for key := range logRecordPositionMap {
+		pos := logRecordPositionMap[key]
+		if pos != nil {
+			batch.Db.index.Put([]byte(key), pos)
 		}
 	}
 
 	return nil
 }
 
-func ParseTranKey(key []byte, tranNum uint64) []byte {
+func EncodingTranKey(key []byte, tranNum uint64) []byte {
 	// 构造事务传输对象
 	seq := make([]byte, binary.MaxVarintLen64)
 
@@ -108,4 +147,10 @@ func ParseTranKey(key []byte, tranNum uint64) []byte {
 	copy(tranKeyByteArr[writeCount:], key)
 
 	return tranKeyByteArr
+}
+
+func DecodingTranKey(key []byte) (int64, []byte) {
+	seq, size := binary.Varint(key)
+
+	return seq, key[size:]
 }
