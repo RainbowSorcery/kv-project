@@ -26,6 +26,8 @@ type Db struct {
 	oldFile map[uint32]*data.FileData
 	// 内存中存储的索引信息
 	index index.Indexer
+	// 全局事务编号
+	TranNum *uint64
 }
 
 func open(option option) (*Db, error) {
