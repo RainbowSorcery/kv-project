@@ -82,7 +82,7 @@ func (batch *BatchWrite) Commit() error {
 	batch.Lock.Lock()
 	defer batch.Lock.Unlock()
 
-	tranNum := atomic.AddUint64(batch.Db.TranNum, 1)
+	tranNum := atomic.AddInt64(batch.Db.TranNum, 1)
 
 	logRecordPositionMap := make(map[string]*data.LogRecordPos)
 
@@ -137,12 +137,12 @@ func (batch *BatchWrite) Commit() error {
 	return nil
 }
 
-func EncodingTranKey(key []byte, tranNum uint64) []byte {
+func EncodingTranKey(key []byte, tranNum int64) []byte {
 	// 构造事务传输对象
 	seq := make([]byte, binary.MaxVarintLen64)
 
 	// 将事务id转换为varint类型数据
-	index := binary.PutUvarint(seq, tranNum)
+	index := binary.PutVarint(seq, tranNum)
 
 	// 将数据copy到目标对象中
 	tranKeyByteArr := make([]byte, len(seq)+index)
