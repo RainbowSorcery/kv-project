@@ -42,6 +42,7 @@ func open(option option) (*Db, error) {
 		activeFile: nil,
 		oldFile:    make(map[uint32]*data.FileData, 10),
 		index:      index.NewBtree(),
+		TranNum:    new(int64),
 	}
 
 	// 初始化db
@@ -85,20 +86,25 @@ func readFileData(db *Db, activeFile *data.FileData) (int64, error) {
 			break
 		}
 
-		// 判断事务id是否存在 如果事务id存在则
-		txNum, _ := DecodingTranKey(logRecord.Key)
-		if txNum != 0 && logRecord.Type == data.Normal {
-			txValue := make(map[string]*data.LogRecordPos)
-			txValue[string(logRecord.Key)] = &data.LogRecordPos{
-				FileId: activeFile.FileId,
-				Pos:    offset,
+		txNum, key := DecodingTranKey(logRecord.Key)
+		// 判断record状态 如果是事务提交对象则暂存到缓存区中 如果不是则判断元素是否被删除 如果被删除则从内存索引中将元素移除
+		if txNum != 0 {
+			txValueMap := txCache[txNum]
+			if txValueMap == nil {
+				txValueMap = make(map[string]*data.LogRecordPos)
+			}
+			if logRecord.Type == data.Normal {
+				txValueMap[string(key)] = &data.LogRecordPos{
+					FileId: activeFile.FileId,
+					Pos:    offset,
+				}
+			} else if logRecord.Type == data.Deleted {
+				txValueMap[string(key)] = nil
 			}
 
-			txCache[txNum] = txValue
-		}
+			txCache[txNum] = txValueMap
 
-		// 如果logRecord是未被删除的 那么加入到索引内存中 否则删除
-		if logRecord.Type == data.Normal {
+		} else if logRecord.Type == data.Normal {
 			db.index.Put(logRecord.Key, &data.LogRecordPos{
 				FileId: activeFile.FileId,
 				Pos:    offset,
@@ -110,10 +116,14 @@ func readFileData(db *Db, activeFile *data.FileData) (int64, error) {
 			txNum, _ := DecodingTranKey(logRecord.Key)
 			txValue := txCache[txNum]
 			for key := range txValue {
-				db.index.Put([]byte(key), txValue[key])
+				if txValue[key] != nil {
+					db.index.Put([]byte(key), txValue[key])
+				} else {
+					db.index.Delete([]byte(key))
+				}
 			}
 			delete(txCache, txNum)
-			db.TranNum = &txNum
+			//db.TranNum = &txNum
 		}
 
 		// 计算下个record偏移

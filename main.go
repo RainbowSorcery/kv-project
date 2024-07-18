@@ -1,12 +1,31 @@
 package main
 
+import (
+	"fmt"
+	"strconv"
+)
+
 func main() {
-	_, err := open(option{
+	db, err := open(option{
 		DirPath:      "d://kv/",
 		FileDataSize: 1024,
 	})
 	if err != nil {
 		panic(err)
+	}
+
+	//write := NewBatchWrite(db)
+
+	//write.Delete([]byte(strconv.Itoa(5)))
+	//err = write.Commit()
+
+	for i := 1; i < 10; i++ {
+		get, err := db.Get([]byte(strconv.Itoa(i)))
+		if err != nil {
+			panic(err)
+		}
+
+		fmt.Println(string(get.Value))
 	}
 	//
 	//iterator := NewDbIterator(db, IteratorOption{

@@ -24,6 +24,7 @@ type BatchWrite struct {
 // NewBatchWrite 构建批量原子写对象
 func NewBatchWrite(db *Db) *BatchWrite {
 	return &BatchWrite{
+		Lock:          &sync.Mutex{},
 		Db:            db,
 		PendingWrites: make(map[string]*data.LogRecord),
 	}
@@ -42,6 +43,7 @@ func (batch *BatchWrite) Put(key []byte, value []byte) error {
 	batch.PendingWrites[string(key)] = &data.LogRecord{
 		Key:   key,
 		Value: value,
+		Type:  data.Normal,
 	}
 
 	return nil
@@ -149,7 +151,7 @@ func EncodingTranKey(key []byte, tranNum int64) []byte {
 	writeCount := copy(tranKeyByteArr[:index], seq[:index])
 	copy(tranKeyByteArr[writeCount:], key)
 
-	return tranKeyByteArr
+	return tranKeyByteArr[:index+writeCount]
 }
 
 func DecodingTranKey(key []byte) (int64, []byte) {
