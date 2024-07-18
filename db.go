@@ -27,7 +27,7 @@ type Db struct {
 	// 内存中存储的索引信息
 	index index.Indexer
 	// 全局事务编号
-	TranNum *uint64
+	TranNum *int64
 }
 
 func open(option option) (*Db, error) {
@@ -75,7 +75,7 @@ func open(option option) (*Db, error) {
 
 func readFileData(db *Db, activeFile *data.FileData) (int64, error) {
 	// 事务暂存数据
-	txCache := make(map[int64][]*data.LogRecordPos)
+	txCache := make(map[int64]map[string]*data.LogRecordPos)
 
 	var offset int64 = 0
 	for {
@@ -87,11 +87,14 @@ func readFileData(db *Db, activeFile *data.FileData) (int64, error) {
 
 		// 判断事务id是否存在 如果事务id存在则
 		txNum, _ := DecodingTranKey(logRecord.Key)
-		if txNum != 0 && logRecord.Type != data.Deleted {
-			txCache[txNum] = append(txCache[txNum], &data.LogRecordPos{
+		if txNum != 0 && logRecord.Type == data.Normal {
+			txValue := make(map[string]*data.LogRecordPos)
+			txValue[string(logRecord.Key)] = &data.LogRecordPos{
 				FileId: activeFile.FileId,
 				Pos:    offset,
-			})
+			}
+
+			txCache[txNum] = txValue
 		}
 
 		// 如果logRecord是未被删除的 那么加入到索引内存中 否则删除
@@ -103,8 +106,14 @@ func readFileData(db *Db, activeFile *data.FileData) (int64, error) {
 		} else if logRecord.Type == data.Deleted {
 			db.index.Delete(logRecord.Key)
 		} else if logRecord.Type == data.TxComplete {
+			// 如果遇到事务索引以完成则读取事务数据到内存中
 			txNum, _ := DecodingTranKey(logRecord.Key)
-
+			txValue := txCache[txNum]
+			for key := range txValue {
+				db.index.Put([]byte(key), txValue[key])
+			}
+			delete(txCache, txNum)
+			db.TranNum = &txNum
 		}
 
 		// 计算下个record偏移

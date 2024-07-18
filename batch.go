@@ -123,11 +123,14 @@ func (batch *BatchWrite) Commit() error {
 		return err
 	}
 
-	// 将更改的索引信息刷新到内存中
-	for key := range logRecordPositionMap {
+	// 将更改的索引信息刷新到内存中 判断索引是否被删除如果被删除则删除内存索引否则则添加内存索引
+	for key := range batch.PendingWrites {
+		record := batch.PendingWrites[key]
 		pos := logRecordPositionMap[key]
-		if pos != nil {
+		if record.Type == data.Normal {
 			batch.Db.index.Put([]byte(key), pos)
+		} else if record.Type == data.Deleted {
+			batch.Db.index.Delete([]byte(key))
 		}
 	}
 
