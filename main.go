@@ -16,15 +16,21 @@ func main() {
 
 	//write := NewBatchWrite(db)
 
-	//write.Delete([]byte(strconv.Itoa(5)))
+	//for i := 0; i < 10; i++ {
+	//	write.Put([]byte(strconv.Itoa(i)), []byte(strconv.Itoa(i)))
+	//}
+
+	//err = write.Delete([]byte(strconv.Itoa(3)))
+	//if err != nil {
+	//	fmt.Println(err)
+	//}
 	//err = write.Commit()
 
-	for i := 1; i < 10; i++ {
+	for i := 0; i < 10; i++ {
 		get, err := db.Get([]byte(strconv.Itoa(i)))
 		if err != nil {
 			panic(err)
 		}
-
 		fmt.Println(string(get.Value))
 	}
 	//

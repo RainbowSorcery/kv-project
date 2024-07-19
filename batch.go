@@ -8,8 +8,8 @@ import (
 	"sync/atomic"
 )
 
-// 事务完成前缀
-const txComPrefix = "tx_com_prefix"
+// TxComPrefix 事务完成前缀
+const TxComPrefix = "tx_com_prefix"
 
 // BatchWrite 批量原子写
 type BatchWrite struct {
@@ -107,7 +107,7 @@ func (batch *BatchWrite) Commit() error {
 
 	// 所有记录追加到磁盘后需要添加一条记录用于表示事务写完成
 	txCompRecord := &data.LogRecord{
-		Key:   EncodingTranKey([]byte(txComPrefix), tranNum),
+		Key:   EncodingTranKey([]byte(TxComPrefix), tranNum),
 		Value: nil,
 		Type:  data.TxComplete,
 	}
@@ -143,7 +143,7 @@ func EncodingTranKey(key []byte, tranNum int64) []byte {
 	// 构造事务传输对象
 	seq := make([]byte, binary.MaxVarintLen64)
 
-	// 将事务id转换为varint类型数据
+	// 将事务id转换为variant类型数据
 	index := binary.PutVarint(seq, tranNum)
 
 	// 将数据copy到目标对象中

@@ -81,6 +81,7 @@ func readFileData(db *Db, activeFile *data.FileData) (int64, error) {
 	var offset int64 = 0
 	for {
 		logRecord, size, err := activeFile.Read(offset)
+
 		// 根据偏移读取文件内容 如果文件内容EOF了，那么表示文件读取完毕了
 		if err != nil && err == io.EOF {
 			break
@@ -88,7 +89,7 @@ func readFileData(db *Db, activeFile *data.FileData) (int64, error) {
 
 		txNum, key := DecodingTranKey(logRecord.Key)
 		// 判断record状态 如果是事务提交对象则暂存到缓存区中 如果不是则判断元素是否被删除 如果被删除则从内存索引中将元素移除
-		if txNum != 0 {
+		if txNum != 0 && logRecord.Type != data.TxComplete {
 			txValueMap := txCache[txNum]
 			if txValueMap == nil {
 				txValueMap = make(map[string]*data.LogRecordPos)
@@ -103,7 +104,6 @@ func readFileData(db *Db, activeFile *data.FileData) (int64, error) {
 			}
 
 			txCache[txNum] = txValueMap
-
 		} else if logRecord.Type == data.Normal {
 			db.index.Put(logRecord.Key, &data.LogRecordPos{
 				FileId: activeFile.FileId,
@@ -113,8 +113,8 @@ func readFileData(db *Db, activeFile *data.FileData) (int64, error) {
 			db.index.Delete(logRecord.Key)
 		} else if logRecord.Type == data.TxComplete {
 			// 如果遇到事务索引以完成则读取事务数据到内存中
-			txNum, _ := DecodingTranKey(logRecord.Key)
-			txValue := txCache[txNum]
+			txKey, _ := DecodingTranKey(logRecord.Key)
+			txValue := txCache[txKey]
 			for key := range txValue {
 				if txValue[key] != nil {
 					db.index.Put([]byte(key), txValue[key])
@@ -123,6 +123,7 @@ func readFileData(db *Db, activeFile *data.FileData) (int64, error) {
 				}
 			}
 			delete(txCache, txNum)
+			db.TranNum = &txNum
 			//db.TranNum = &txNum
 		}
 
