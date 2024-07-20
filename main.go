@@ -15,15 +15,15 @@ func main() {
 	}
 
 	//write := NewBatchWrite(db)
-
+	//
 	//for i := 0; i < 10; i++ {
-	//	write.Put([]byte(strconv.Itoa(i)), []byte(strconv.Itoa(i)))
+	//	err := write.Put([]byte(strconv.Itoa(i)), []byte(strconv.Itoa(i)))
+	//	if err != nil {
+	//		fmt.Println(err)
+	//	}
 	//}
 
-	//err = write.Delete([]byte(strconv.Itoa(3)))
-	//if err != nil {
-	//	fmt.Println(err)
-	//}
+	//write.Delete([]byte(strconv.Itoa(3)))
 	//err = write.Commit()
 
 	for i := 0; i < 10; i++ {
@@ -33,7 +33,7 @@ func main() {
 		}
 		fmt.Println(string(get.Value))
 	}
-	//
+
 	//iterator := NewDbIterator(db, IteratorOption{
 	//	Reverse: false,
 	//	Prefix:  nil,

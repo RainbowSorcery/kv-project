@@ -105,12 +105,12 @@ func readFileData(db *Db, activeFile *data.FileData) (int64, error) {
 
 			txCache[txNum] = txValueMap
 		} else if logRecord.Type == data.Normal {
-			db.index.Put(logRecord.Key, &data.LogRecordPos{
+			db.index.Put(key, &data.LogRecordPos{
 				FileId: activeFile.FileId,
 				Pos:    offset,
 			})
 		} else if logRecord.Type == data.Deleted {
-			db.index.Delete(logRecord.Key)
+			db.index.Delete(key)
 		} else if logRecord.Type == data.TxComplete {
 			// 如果遇到事务索引以完成则读取事务数据到内存中
 			txKey, _ := DecodingTranKey(logRecord.Key)
@@ -196,13 +196,13 @@ func (db *Db) Put(key []byte, value []byte) error {
 
 	// 构建logRecord
 	logRecord := &data.LogRecord{
-		Key:   key,
+		Key:   EncodingTranKey(key, 0),
 		Value: value,
 		Type:  data.Normal,
 	}
 
 	// 向文件追加数据
-	logRecordPos, err := db.appendLogRecord(logRecord)
+	logRecordPos, err := db.appendLogRecordSync(logRecord)
 	if err != nil {
 		return errors.New("文件追加失败")
 	}
@@ -230,7 +230,7 @@ func (db *Db) Delete(key []byte) error {
 
 	// 新建一个LogRecord并写入到磁盘中 在合并时再将墓碑值修改
 	logRecord := &data.LogRecord{
-		Key:  key,
+		Key:  EncodingTranKey(key, 0),
 		Type: data.Deleted,
 	}
 
@@ -246,10 +246,14 @@ func (db *Db) Delete(key []byte) error {
 	return nil
 }
 
-// 将KV数据追加到文件中
-func (db *Db) appendLogRecord(logRecord *data.LogRecord) (*data.LogRecordPos, error) {
+func (db *Db) appendLogRecordSync(logRecord *data.LogRecord) (*data.LogRecordPos, error) {
 	db.lock.Lock()
 	defer db.lock.Unlock()
+	return db.appendLogRecord(logRecord)
+}
+
+// 将KV数据追加到文件中
+func (db *Db) appendLogRecord(logRecord *data.LogRecord) (*data.LogRecordPos, error) {
 
 	// 如果当前活跃文件为空 则创建当前活跃文件
 	if db.activeFile == nil {

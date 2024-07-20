@@ -91,8 +91,9 @@ func (batch *BatchWrite) Commit() error {
 	for key := range batch.PendingWrites {
 		record := batch.PendingWrites[key]
 		if record != nil {
+			_, realKey := DecodingTranKey(record.Key)
 			position, err := batch.Db.appendLogRecord(&data.LogRecord{
-				Key:   EncodingTranKey(record.Key, tranNum),
+				Key:   EncodingTranKey(realKey, tranNum),
 				Type:  record.Type,
 				Value: record.Value,
 			})
