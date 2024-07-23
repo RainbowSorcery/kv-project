@@ -14,18 +14,6 @@ func main() {
 		panic(err)
 	}
 
-	//write := NewBatchWrite(db)
-	//
-	//for i := 0; i < 10; i++ {
-	//	err := write.Put([]byte(strconv.Itoa(i)), []byte(strconv.Itoa(i)))
-	//	if err != nil {
-	//		fmt.Println(err)
-	//	}
-	//}
-
-	//write.Delete([]byte(strconv.Itoa(3)))
-	//err = write.Commit()
-
 	for i := 0; i < 10; i++ {
 		get, err := db.Get([]byte(strconv.Itoa(i)))
 		if err != nil {

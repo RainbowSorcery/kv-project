@@ -118,9 +118,31 @@ func (fileData *FileData) ReadLogRecord(pos int64) (logRecord *LogRecord, err er
 	return logRecord, nil
 }
 
+func (fileData *FileData) WriteHintRecord(pos *LogRecordPos) error {
+	return nil
+}
+
 func OpenFileData(path string, fileId uint32) (*FileData, error) {
 	// 拼接路径
 	dataFilePath := path + fmt.Sprintf("%09d", fileId) + ".data"
+	// 创建IOManagement对象
+	fileIo, err := fio.CreateFileIo(dataFilePath)
+	if err != nil {
+		return nil, err
+	}
+
+	// 创建FileData对象
+
+	return &FileData{
+		FileId:      fileId,
+		WriteOffset: 0,
+		FileManage:  fileIo,
+	}, nil
+}
+
+func OpenHintFile(path string, fileId uint32) (*FileData, error) {
+	// 拼接路径
+	dataFilePath := path + fmt.Sprintf("%09d", fileId) + ".hint"
 	// 创建IOManagement对象
 	fileIo, err := fio.CreateFileIo(dataFilePath)
 	if err != nil {

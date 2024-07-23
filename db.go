@@ -28,6 +28,8 @@ type Db struct {
 	index index.Indexer
 	// 全局事务编号
 	TranNum *int64
+	// 是否merge中
+	mergeIng bool
 }
 
 func open(option option) (*Db, error) {
