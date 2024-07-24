@@ -4,9 +4,8 @@ import (
 	"errors"
 	"io"
 	"kv-database/data"
+	"log"
 	"os"
-	"path"
-	"sort"
 )
 
 const (
@@ -21,6 +20,7 @@ func (db *Db) Merge() error {
 		return errors.New("正在合并中")
 	}
 	defer db.lock.Unlock()
+	log.Println(db.option.DirPath + MergePath)
 
 	// 判断合并文件是否存在
 	mergePath := db.getMergePath()
@@ -32,21 +32,25 @@ func (db *Db) Merge() error {
 		}
 	}
 
-	oldFileMap := db.oldFile
 	// 1. 获取所有非活动文件 也就是需要merge的文件
-	sort.Slice(oldFileMap, func(i, j int) bool {
-		return oldFileMap[uint32(i)].FileId < oldFileMap[uint32(j)].FileId
-	})
+	oldFileMap := db.oldFile
 
 	// 创建合并实例
 	mergeDb, err := open(option{
-		DirPath:      db.getMergePath(),
+		DirPath:      mergePath,
 		FileDataSize: 1024,
 	})
+
+	// 4. 打开hint文件
+	hintFile, err := data.OpenHintFile(mergePath)
 
 	// 2. 遍历文件中的LogRecord
 	for oldFileKey := range oldFileMap {
 		oldFile := oldFileMap[oldFileKey]
+
+		if err != nil {
+			return err
+		}
 
 		for {
 			var offset int64 = 0
@@ -69,16 +73,10 @@ func (db *Db) Merge() error {
 				}
 			}
 
-			// 4. 打开hint文件
-			hintFile, err := data.OpenHintFile(mergePath, oldFile.FileId)
-			if err != nil {
-				return err
-			}
 			err = hintFile.WriteHintRecord(pos)
 			if err != nil {
 				return err
 			}
-
 			offset += size
 		}
 		// 5. 整个文件遍历完成后添加一条文件merge完成的记录
@@ -88,5 +86,5 @@ func (db *Db) Merge() error {
 }
 
 func (db *Db) getMergePath() string {
-	return path.Dir(db.option.DirPath + MergePath)
+	return db.option.DirPath + MergePath
 }

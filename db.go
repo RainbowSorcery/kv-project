@@ -30,6 +30,8 @@ type Db struct {
 	TranNum *int64
 	// 是否merge中
 	mergeIng bool
+	// 合并结果文件
+	mergeCompleteFile *data.FileData
 }
 
 func open(option option) (*Db, error) {
@@ -151,6 +153,13 @@ func (db *Db) LoadDb() error {
 		return err
 	}
 
+	// 只获取数据文件 过滤文件夹
+	for i, file := range fileDataArr {
+		if file.IsDir() {
+			fileDataArr = append(fileDataArr[:i], fileDataArr[i+1:]...)
+		}
+	}
+
 	// 如果目录下没有文件 那么初始化一个活动文件
 	if fileDataArr == nil || len(fileDataArr) == 0 {
 		fileData, err := data.OpenFileData(db.option.DirPath, uint32(0))
@@ -267,10 +276,6 @@ func (db *Db) appendLogRecord(logRecord *data.LogRecord) (*data.LogRecordPos, er
 	// 判断文件是否到达阈值 如果到达阈值则将旧的数据文件归档，创建新的数据文件
 	if db.activeFile.WriteOffset >= db.option.FileDataSize {
 		db.oldFile[db.activeFile.FileId] = db.activeFile
-		err := db.Close()
-		if err != nil {
-			return nil, err
-		}
 
 		if err := db.setActiveFile(); err != nil {
 			return nil, err

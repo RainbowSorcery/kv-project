@@ -1,6 +1,7 @@
 package data
 
 import (
+	"bytes"
 	"encoding/binary"
 	"hash/crc32"
 )
@@ -105,4 +106,35 @@ func GetLogRecordCRC(record *LogRecord, headerBuffer []byte) uint32 {
 	crc = crc32.Update(crc, crc32.IEEETable, record.Value)
 
 	return crc
+}
+
+func EncodingLogRecordPos(pos *LogRecordPos) ([]byte, error) {
+	buffer := make([]byte, 12)
+
+	index := 0
+	index += binary.PutVarint(buffer[:index], int64(pos.FileId))
+	index += binary.PutVarint(buffer[index:], pos.Pos)
+
+	return buffer, nil
+}
+
+// Int64ToBytes 整形转换成字节数组
+func Int64ToBytes(n int64) ([]byte, error) {
+	bytesBuffer := bytes.NewBuffer([]byte{})
+	err := binary.Write(bytesBuffer, binary.BigEndian, n)
+	if err != nil {
+		return nil, err
+	}
+	return bytesBuffer.Bytes(), nil
+}
+
+// Uint32ToBytes 整形转换成字节数组
+func Uint32ToBytes(n uint32) ([]byte, error) {
+	bytesBuffer := bytes.NewBuffer([]byte{})
+	err := binary.Write(bytesBuffer, binary.BigEndian, n)
+	if err != nil {
+		return nil, err
+	}
+
+	return bytesBuffer.Bytes(), nil
 }
