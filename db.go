@@ -109,12 +109,14 @@ func readFileData(db *Db, activeFile *data.FileData) (int64, error) {
 
 			txCache[txNum] = txValueMap
 		} else if logRecord.Type == data.Normal {
-			db.index.Put(key, &data.LogRecordPos{
+			_, realKey := DecodingTranKey(logRecord.Key)
+			db.index.Put(realKey, &data.LogRecordPos{
 				FileId: activeFile.FileId,
 				Pos:    offset,
 			})
 		} else if logRecord.Type == data.Deleted {
-			db.index.Delete(key)
+			_, realKey := DecodingTranKey(logRecord.Key)
+			db.index.Delete(realKey)
 		} else if logRecord.Type == data.TxComplete {
 			// 如果遇到事务索引以完成则读取事务数据到内存中
 			txKey, _ := DecodingTranKey(logRecord.Key)
@@ -358,6 +360,7 @@ func (db *Db) Get(key []byte) (*data.LogRecord, error) {
 	defer db.lock.RUnlock()
 
 	// 在内存中查找key是否存在 如果不存在则直接抛出异常
+	EncodingTranKey(key, 0)
 	keyIndex := db.index.Get(key)
 	record, err := db.posByLogRecord(keyIndex)
 	if err != nil {

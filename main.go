@@ -13,20 +13,25 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	//
-	//for i := 0; i < 1000; i++ {
-	//	err = db.Put([]byte(strconv.Itoa(i)), []byte(strconv.Itoa(i)))
-	//}
 
-	//db.Merge()
+	index := 10000
+	//creatData(db, index)
 
-	//
-	for i := 0; i < 1000; i++ {
+	getData(db, index)
+
+}
+
+func creatData(db *Db, index int) {
+	for i := 0; i < index; i++ {
+		_ = db.Put([]byte(strconv.Itoa(i)), []byte(strconv.Itoa(i)))
+	}
+}
+func getData(db *Db, index int) {
+	for i := 0; i < index; i++ {
 		get, err := db.Get([]byte(strconv.Itoa(i)))
 		if err != nil {
 			panic(err)
 		}
 		fmt.Println(string(get.Value))
 	}
-
 }

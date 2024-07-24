@@ -148,11 +148,11 @@ func EncodingTranKey(key []byte, tranNum int64) []byte {
 	index := binary.PutVarint(seq, tranNum)
 
 	// 将数据copy到目标对象中
-	tranKeyByteArr := make([]byte, len(seq)+index)
+	tranKeyByteArr := make([]byte, len(key)+index)
 	writeCount := copy(tranKeyByteArr[:index], seq[:index])
 	copy(tranKeyByteArr[writeCount:], key)
 
-	return tranKeyByteArr[:index+writeCount]
+	return tranKeyByteArr
 }
 
 func DecodingTranKey(key []byte) (int64, []byte) {
