@@ -92,7 +92,7 @@ func (batch *BatchWrite) Commit() error {
 		record := batch.PendingWrites[key]
 		if record != nil {
 			_, realKey := DecodingTranKey(record.Key)
-			position, err := batch.Db.appendLogRecord(&data.LogRecord{
+			position, err := batch.Db.AppendLogRecord(&data.LogRecord{
 				Key:   EncodingTranKey(realKey, tranNum),
 				Type:  record.Type,
 				Value: record.Value,
@@ -113,7 +113,7 @@ func (batch *BatchWrite) Commit() error {
 		Type:  data.TxComplete,
 	}
 
-	txCompRecordPos, err := batch.Db.appendLogRecord(txCompRecord)
+	txCompRecordPos, err := batch.Db.AppendLogRecord(txCompRecord)
 	if err != nil {
 		return err
 	}

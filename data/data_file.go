@@ -134,6 +134,23 @@ func (fileData *FileData) WriteHintRecord(pos *LogRecordPos) error {
 	return nil
 }
 
+func (fileData *FileData) WriteMergeFinishRecord(mergeRecord *MergeFinishRecord) error {
+	mergeRecordBytesArr := make([]byte, 16)
+
+	writeIndex := 0
+	writeIndex += binary.PutVarint(mergeRecordBytesArr[writeIndex:], int64(mergeRecord.FinishCount))
+	for fileId := range mergeRecord.mergerFinishFileIds {
+		writeIndex += binary.PutVarint(mergeRecordBytesArr[writeIndex:], int64(fileId))
+	}
+
+	err := fileData.Write(mergeRecordBytesArr)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func OpenFileData(path string, fileId uint32) (*FileData, error) {
 	// 拼接路径
 	dataFilePath := path + fmt.Sprintf("%09d", fileId) + ".data"
@@ -154,7 +171,24 @@ func OpenFileData(path string, fileId uint32) (*FileData, error) {
 
 func OpenHintFile(path string) (*FileData, error) {
 	// 拼接路径
-	dataFilePath := path + "data-file" + ".hint"
+	dataFilePath := path + "hint-index" + ".hint"
+	// 创建IOManagement对象
+	fileIo, err := fio.CreateFileIo(dataFilePath)
+	if err != nil {
+		return nil, err
+	}
+
+	// 创建FileData对象
+
+	return &FileData{
+		WriteOffset: 0,
+		FileManage:  fileIo,
+	}, nil
+}
+
+func OpenFinishMergeFile(path string) (*FileData, error) {
+	// 拼接路径
+	dataFilePath := path + "merge-fin" + ".fin"
 	// 创建IOManagement对象
 	fileIo, err := fio.CreateFileIo(dataFilePath)
 	if err != nil {

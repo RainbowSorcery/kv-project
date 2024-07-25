@@ -155,9 +155,10 @@ func (db *Db) LoadDb() error {
 		return err
 	}
 
-	// 只获取数据文件 过滤文件夹
-	for i, file := range fileDataArr {
-		if file.IsDir() {
+	// 只获取数据文件 过滤文件夹和不是data后缀的文件
+	for i := len(fileDataArr) - 1; i >= 0; i-- {
+		file := fileDataArr[i]
+		if file.IsDir() || !strings.HasSuffix(file.Name(), ".data") {
 			fileDataArr = append(fileDataArr[:i], fileDataArr[i+1:]...)
 		}
 	}
@@ -247,7 +248,7 @@ func (db *Db) Delete(key []byte) error {
 		Type: data.Deleted,
 	}
 
-	_, err := db.appendLogRecord(logRecord)
+	_, err := db.AppendLogRecord(logRecord)
 
 	if err != nil {
 		return err
@@ -262,11 +263,11 @@ func (db *Db) Delete(key []byte) error {
 func (db *Db) appendLogRecordSync(logRecord *data.LogRecord) (*data.LogRecordPos, error) {
 	db.lock.Lock()
 	defer db.lock.Unlock()
-	return db.appendLogRecord(logRecord)
+	return db.AppendLogRecord(logRecord)
 }
 
-// 将KV数据追加到文件中
-func (db *Db) appendLogRecord(logRecord *data.LogRecord) (*data.LogRecordPos, error) {
+// AppendLogRecord 将KV数据追加到文件中
+func (db *Db) AppendLogRecord(logRecord *data.LogRecord) (*data.LogRecordPos, error) {
 
 	// 如果当前活跃文件为空 则创建当前活跃文件
 	if db.activeFile == nil {

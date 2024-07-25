@@ -118,6 +118,19 @@ func EncodingLogRecordPos(pos *LogRecordPos) ([]byte, error) {
 	return buffer, nil
 }
 
+func DecodingLogRecordPos(posBytes []byte) (*LogRecordPos, error) {
+	index := 0
+	fileId, size := binary.Varint(posBytes)
+	index += size
+	pos, size := binary.Varint(posBytes[size:])
+	index += size
+
+	return &LogRecordPos{
+		FileId: uint32(fileId),
+		Pos:    pos,
+	}, nil
+}
+
 // Int64ToBytes 整形转换成字节数组
 func Int64ToBytes(n int64) ([]byte, error) {
 	bytesBuffer := bytes.NewBuffer([]byte{})
