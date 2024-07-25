@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	MergePath = "/merge"
+	MergePath = "/merge/"
 )
 
 func (db *Db) Merge() error {
@@ -52,8 +52,8 @@ func (db *Db) Merge() error {
 			return err
 		}
 
+		var offset int64 = 0
 		for {
-			var offset int64 = 0
 			logRecord, size, err := oldFile.Read(offset)
 			if err == io.EOF {
 				break
@@ -63,7 +63,8 @@ func (db *Db) Merge() error {
 				return errors.New("logRecord解析错误")
 			}
 
-			pos := db.index.Get(logRecord.Key)
+			_, realKey := DecodingTranKey(logRecord.Key)
+			pos := db.index.Get(realKey)
 
 			// 3. 判断LogRecord中的数据是否与内存索引一致 如果一致则新建hint文件
 			if pos != nil && pos.Pos == offset && pos.FileId == oldFile.FileId {

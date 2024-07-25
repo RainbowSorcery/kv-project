@@ -112,7 +112,7 @@ func EncodingLogRecordPos(pos *LogRecordPos) ([]byte, error) {
 	buffer := make([]byte, 12)
 
 	index := 0
-	index += binary.PutVarint(buffer[:index], int64(pos.FileId))
+	index += binary.PutVarint(buffer[index:], int64(pos.FileId))
 	index += binary.PutVarint(buffer[index:], pos.Pos)
 
 	return buffer, nil
