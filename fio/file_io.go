@@ -1,6 +1,9 @@
 package fio
 
-import "os"
+import (
+	"os"
+	"path/filepath"
+)
 
 type FileIO struct {
 	file     *os.File
@@ -47,4 +50,36 @@ func (fileIo *FileIO) Close() error {
 
 func (fileIo *FileIO) Size() int64 {
 	return fileIo.fileInfo.Size()
+}
+
+func (fileIo *FileIO) FileName() string {
+	return fileIo.fileInfo.Name()
+}
+
+func (fileIo *FileIO) Remove() error {
+	err := fileIo.Close()
+	if err != nil {
+		return err
+	}
+	err = os.Remove(fileIo.file.Name())
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (fileIo *FileIO) Move(path string) error {
+	absFilePath, err := filepath.Abs(fileIo.fileInfo.Name())
+
+	if err != nil {
+		return err
+	}
+
+	err = os.Rename(absFilePath, path)
+	if err != nil {
+		return err
+	}
+	return nil
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"kv-database/data"
 	"log"
@@ -9,16 +10,8 @@ import (
 )
 
 const (
-	MergePath      = "/merge/"
-	FinishMergeKey = "FinishMergeKey"
+	MergePath = "/merge/"
 )
-
-type MergeFinishRecord struct {
-	// 合并成功数
-	FinishCount uint32
-	// 合并成功文件id列表
-	mergerFinishFileIds []uint32
-}
 
 func (db *Db) Merge() error {
 	db.lock.Lock()
@@ -28,7 +21,12 @@ func (db *Db) Merge() error {
 		return errors.New("正在合并中")
 	}
 	defer db.lock.Unlock()
-	log.Println(db.option.DirPath + MergePath)
+	mergeDir := db.option.DirPath + MergePath
+	log.Println("合并文件目录:", mergeDir)
+
+	// 将上次合并的缓存文件清除
+	os.Remove(mergeDir)
+	os.Remove(db.option.DirPath + data.HintFileName)
 
 	// 判断合并文件是否存在
 	mergePath := db.getMergePath()
@@ -84,35 +82,80 @@ func (db *Db) Merge() error {
 
 			// 3. 判断LogRecord中的数据是否与内存索引一致 如果一致则新建hint文件
 			if pos != nil && pos.Pos == offset && pos.FileId == oldFile.FileId {
-				_, err = mergeDb.AppendLogRecord(logRecord)
+				pos, err = mergeDb.AppendLogRecord(logRecord)
+				if err != nil {
+					return err
+				}
+				err = hintFile.WriteHintRecord(logRecord.Key, pos)
 				if err != nil {
 					return err
 				}
 			}
 
-			err = hintFile.WriteHintRecord(pos)
-			if err != nil {
-				return err
-			}
 			offset += size
 		}
 		// 5. 整个文件遍历完成后添加一条文件merge完成的记录
 		mergerFinishFileIdList = append(mergerFinishFileIdList, oldFileKey)
 	}
 
-	mergeRecount := &MergeFinishRecord{
-		FinishCount:         uint32(len(oldFileMap)),
-		mergerFinishFileIds: mergerFinishFileIdList,
-	}
+	//mergeRecount := &data.MergeFinishRecord{
+	//	FinishCount:         uint32(len(oldFileMap)),
+	//	MergerFinishFileIds: mergerFinishFileIdList,
+	//}
 
 	// 将合并完成记录写入到文件中
-	mergeFinsFile, err := data.OpenFinishMergeFile(db.option.DirPath)
+	//mergeFinsFile, err := data.OpenFinishMergeFile(db.option.DirPath)
+	//if err != nil {
+	//	return err
+	//}
+
+	//err = mergeFinsFile.WriteMergeFinishRecord(mergeRecount)
+
 	if err != nil {
 		return err
 	}
 
-	err = mergeFinsFile.WriteMergeFinishRecord(mergeRecount)
+	mergeDbFile := make([]*data.FileData, 0)
+	mergeDbFile = append(mergeDbFile, mergeDb.activeFile)
+	err = mergeDb.activeFile.FileManage.Close()
+	if err != nil {
+		return err
+	}
 
+	for oldMergeFileKey := range mergeDb.oldFile {
+		oldFile := mergeDb.oldFile[oldMergeFileKey]
+		err := oldFile.FileManage.Close()
+		if err != nil {
+			return err
+		}
+		mergeDbFile = append(mergeDbFile, oldFile)
+	}
+
+	// 删除旧的数据文件
+	for fileId := range db.oldFile {
+		oldFileData := db.oldFile[fileId]
+		err := oldFileData.FileManage.Remove()
+		if err != nil {
+			return err
+		}
+	}
+
+	// 移动新的合并文件
+	for index := range mergeDbFile {
+		mergeFileData := mergeDbFile[index]
+		err := os.Rename(mergeDir+fmt.Sprintf("%09d", mergeFileData.FileId)+".data", db.option.DirPath+fmt.Sprintf("%09d", mergeFileData.FileId)+".data")
+		if err != nil {
+			return err
+		}
+		fileData, err := data.OpenFileData(db.option.DirPath, mergeFileData.FileId)
+		if err != nil {
+			return err
+		}
+		db.oldFile[mergeFileData.FileId] = fileData
+	}
+
+	// 重新加载索引信息
+	err = db.LoadHintFile(nil)
 	if err != nil {
 		return err
 	}

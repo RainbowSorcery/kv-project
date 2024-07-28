@@ -14,4 +14,13 @@ type IOManagement interface {
 
 	// Size 获取文件大小
 	Size() int64
+
+	// FileName 获取文件名称
+	FileName() string
+
+	// Remove 删除文件
+	Remove() error
+
+	// Move 移动文件
+	Move(path string) error
 }

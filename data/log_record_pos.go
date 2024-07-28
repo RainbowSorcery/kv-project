@@ -15,6 +15,11 @@ const (
 	Normal LogRecordType = 1
 	// TxComplete 事务完成
 	TxComplete LogRecordType = 2
+
+	// HintFileName Hint文件名称常量
+	HintFileName = "hint-index.hint"
+	// MergeFinishFileName 合并完成记录文件名称
+	MergeFinishFileName = "merge-finish.done"
 )
 
 // LogRecordPos 数据内存索引信息 主要是根据key找到指定文件的指定位置读取指定数据
@@ -37,6 +42,14 @@ type LogRecord struct {
 	Value []byte
 	// 索引是否删除
 	Type LogRecordType
+}
+
+// MergeFinishRecord 合并完成记录
+type MergeFinishRecord struct {
+	// 合并成功数
+	FinishCount uint32
+	// 合并成功文件id列表
+	MergerFinishFileIds []uint32
 }
 
 // EncodingLogRecord 将record对象实例化为字节数组并返回长度以及序列化后的对象结果

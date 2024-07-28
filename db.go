@@ -1,9 +1,11 @@
 package main
 
 import (
+	"encoding/binary"
 	"errors"
 	"io"
 	"kv-database/data"
+	"kv-database/fio"
 	"kv-database/index"
 	"log"
 	"os"
@@ -67,7 +69,15 @@ func open(option option) (*Db, error) {
 
 	// 读取非活动文件
 	for _, oldFileData := range db.oldFile {
-		_, err = readFileData(db, oldFileData)
+		// 判断hint文件是否存在 如果存在则读取hint文件
+		_, err := os.Stat(db.option.DirPath + data.HintFileName)
+		if os.IsNotExist(err) {
+			_, err = readFileData(db, oldFileData)
+		} else {
+			// 读取hint文件，建立内存索引
+			err = db.LoadHintFile(oldFileData)
+		}
+
 		if err != nil && err == io.EOF {
 			log.Printf("文件读取完毕, fileId:%d\n", oldFileData.FileId)
 		} else if err != nil && err != io.EOF {
@@ -137,6 +147,55 @@ func readFileData(db *Db, activeFile *data.FileData) (int64, error) {
 		offset += size
 	}
 	return offset, nil
+}
+
+// LoadHintFile 加载Hint文件
+func (db *Db) LoadHintFile(fileData *data.FileData) error {
+	// 读取合并完成记录信息
+	hintFile, err := fio.CreateFileIo(db.option.DirPath + data.HintFileName)
+	if err != nil {
+		return err
+	}
+	// 读取hint文件
+	var offset int64 = 0
+	for {
+		// 读取key信息
+		keySizeBuffer := make([]byte, binary.MaxVarintLen64)
+		_, err := hintFile.Read(offset, keySizeBuffer)
+
+		if err != nil && err == io.EOF {
+			break
+		}
+		keySize, varintIndex := binary.Uvarint(keySizeBuffer)
+		offset += int64(varintIndex)
+
+		key := make([]byte, keySize)
+		_, err = hintFile.Read(offset, key)
+		offset += int64(keySize)
+
+		buffer := make([]byte, 12)
+		readByteSize, err := hintFile.Read(offset, buffer)
+
+		pos, err := data.DecodingLogRecordPos(buffer)
+
+		if err != nil {
+			return err
+		}
+
+		if err != nil && err == io.EOF {
+			break
+		}
+
+		_, realKey := DecodingTranKey(key)
+		db.index.Put(realKey, pos)
+
+		offset += int64(readByteSize)
+
+	}
+
+	// 将合并文件移动到主目录中
+
+	return nil
 }
 
 // LoadDb 加载db文件

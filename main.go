@@ -14,10 +14,13 @@ func main() {
 		panic(err)
 	}
 
-	index := 1000
-	//creatData(db, index)
+	index := 100
+	//
+	for i := 0; i < 1000; i++ {
+		creatData(db, index)
+	}
 
-	//err = db.Merge()
+	err = db.Merge()
 	if err != nil {
 		panic(err)
 	}

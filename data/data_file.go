@@ -118,7 +118,15 @@ func (fileData *FileData) ReadLogRecord(pos int64) (logRecord *LogRecord, err er
 	return logRecord, nil
 }
 
-func (fileData *FileData) WriteHintRecord(pos *LogRecordPos) error {
+func (fileData *FileData) WriteHintRecord(key []byte, pos *LogRecordPos) error {
+	// 获取key数据
+	keyVarintBuffer := make([]byte, binary.MaxVarintLen64)
+	keySize := len(key)
+	index := binary.PutUvarint(keyVarintBuffer, uint64(keySize))
+	keyBuffer := make([]byte, keySize+index)
+	copy(keyBuffer[:index], keyVarintBuffer[:index])
+	copy(keyBuffer[index:], key)
+	err := fileData.Write(keyBuffer)
 
 	recordPos, err := EncodingLogRecordPos(pos)
 
@@ -139,7 +147,7 @@ func (fileData *FileData) WriteMergeFinishRecord(mergeRecord *MergeFinishRecord)
 
 	writeIndex := 0
 	writeIndex += binary.PutVarint(mergeRecordBytesArr[writeIndex:], int64(mergeRecord.FinishCount))
-	for fileId := range mergeRecord.mergerFinishFileIds {
+	for fileId := range mergeRecord.MergerFinishFileIds {
 		writeIndex += binary.PutVarint(mergeRecordBytesArr[writeIndex:], int64(fileId))
 	}
 
@@ -179,7 +187,6 @@ func OpenHintFile(path string) (*FileData, error) {
 	}
 
 	// 创建FileData对象
-
 	return &FileData{
 		WriteOffset: 0,
 		FileManage:  fileIo,
@@ -188,7 +195,7 @@ func OpenHintFile(path string) (*FileData, error) {
 
 func OpenFinishMergeFile(path string) (*FileData, error) {
 	// 拼接路径
-	dataFilePath := path + "merge-fin" + ".fin"
+	dataFilePath := path + "merge-finish.done"
 	// 创建IOManagement对象
 	fileIo, err := fio.CreateFileIo(dataFilePath)
 	if err != nil {
