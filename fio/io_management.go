@@ -23,4 +23,7 @@ type IOManagement interface {
 
 	// Move 移动文件
 	Move(path string) error
+
+	// Exits 校验文件是否存在
+	Exits() bool
 }

@@ -27,41 +27,41 @@ func CreateFileIo(filePath string) (*FileIO, error) {
 	}, nil
 }
 
-func (fileIo *FileIO) Read(offset int64, buffer []byte) (int, error) {
-	_, err := fileIo.file.Seek(offset, 0)
+func (fileIO *FileIO) Read(offset int64, buffer []byte) (int, error) {
+	_, err := fileIO.file.Seek(offset, 0)
 	if err != nil {
 		return 0, err
 	}
 
-	return fileIo.file.Read(buffer)
+	return fileIO.file.Read(buffer)
 }
 
-func (fileIo *FileIO) Write(buffer []byte) (int, error) {
-	return fileIo.file.Write(buffer)
+func (fileIO *FileIO) Write(buffer []byte) (int, error) {
+	return fileIO.file.Write(buffer)
 }
 
-func (fileIo *FileIO) Sync() error {
-	return fileIo.file.Sync()
+func (fileIO *FileIO) Sync() error {
+	return fileIO.file.Sync()
 }
 
-func (fileIo *FileIO) Close() error {
-	return fileIo.file.Close()
+func (fileIO *FileIO) Close() error {
+	return fileIO.file.Close()
 }
 
-func (fileIo *FileIO) Size() int64 {
-	return fileIo.fileInfo.Size()
+func (fileIO *FileIO) Size() int64 {
+	return fileIO.fileInfo.Size()
 }
 
-func (fileIo *FileIO) FileName() string {
-	return fileIo.fileInfo.Name()
+func (fileIO *FileIO) FileName() string {
+	return fileIO.fileInfo.Name()
 }
 
-func (fileIo *FileIO) Remove() error {
-	err := fileIo.Close()
+func (fileIO *FileIO) Remove() error {
+	err := fileIO.Close()
 	if err != nil {
 		return err
 	}
-	err = os.Remove(fileIo.file.Name())
+	err = os.Remove(fileIO.file.Name())
 
 	if err != nil {
 		return err
@@ -70,8 +70,8 @@ func (fileIo *FileIO) Remove() error {
 	return nil
 }
 
-func (fileIo *FileIO) Move(path string) error {
-	absFilePath, err := filepath.Abs(fileIo.fileInfo.Name())
+func (fileIO *FileIO) Move(path string) error {
+	absFilePath, err := filepath.Abs(fileIO.fileInfo.Name())
 
 	if err != nil {
 		return err
@@ -82,4 +82,12 @@ func (fileIo *FileIO) Move(path string) error {
 		return err
 	}
 	return nil
+}
+
+func (fileIO *FileIO) Exits() bool {
+	_, err := os.Stat(fileIO.FileName())
+	if os.IsNotExist(err) {
+		return false
+	}
+	return true
 }

@@ -143,7 +143,7 @@ func (fileData *FileData) WriteHintRecord(key []byte, pos *LogRecordPos) error {
 }
 
 func (fileData *FileData) WriteMergeFinishRecord(mergeRecord *MergeFinishRecord) error {
-	mergeRecordBytesArr := make([]byte, 16)
+	mergeRecordBytesArr := make([]byte, (len(mergeRecord.MergerFinishFileIds)+4)*binary.MaxVarintLen64)
 
 	writeIndex := 0
 	writeIndex += binary.PutVarint(mergeRecordBytesArr[writeIndex:], int64(mergeRecord.FinishCount))
@@ -151,7 +151,7 @@ func (fileData *FileData) WriteMergeFinishRecord(mergeRecord *MergeFinishRecord)
 		writeIndex += binary.PutVarint(mergeRecordBytesArr[writeIndex:], int64(fileId))
 	}
 
-	err := fileData.Write(mergeRecordBytesArr)
+	err := fileData.Write(mergeRecordBytesArr[:writeIndex])
 	if err != nil {
 		return err
 	}

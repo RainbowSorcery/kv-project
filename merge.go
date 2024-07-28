@@ -94,22 +94,27 @@ func (db *Db) Merge() error {
 
 			offset += size
 		}
-		// 5. 整个文件遍历完成后添加一条文件merge完成的记录
-		mergerFinishFileIdList = append(mergerFinishFileIdList, oldFileKey)
 	}
 
-	//mergeRecount := &data.MergeFinishRecord{
-	//	FinishCount:         uint32(len(oldFileMap)),
-	//	MergerFinishFileIds: mergerFinishFileIdList,
-	//}
+	// 5. 整个文件遍历完成后添加一条文件merge完成的记录
+	mergerFinishFileIdList = append(mergerFinishFileIdList, mergeDb.activeFile.FileId)
+	for fileId := range mergeDb.oldFile {
+		mergerFinishFileIdList = append(mergerFinishFileIdList, fileId)
+
+	}
+
+	mergeRecount := &data.MergeFinishRecord{
+		FinishCount:         uint32(len(mergeDb.oldFile) + 1),
+		MergerFinishFileIds: mergerFinishFileIdList,
+	}
 
 	// 将合并完成记录写入到文件中
-	//mergeFinsFile, err := data.OpenFinishMergeFile(db.option.DirPath)
-	//if err != nil {
-	//	return err
-	//}
+	mergeFinsFile, err := data.OpenFinishMergeFile(db.option.DirPath)
+	if err != nil {
+		return err
+	}
 
-	//err = mergeFinsFile.WriteMergeFinishRecord(mergeRecount)
+	err = mergeFinsFile.WriteMergeFinishRecord(mergeRecount)
 
 	if err != nil {
 		return err

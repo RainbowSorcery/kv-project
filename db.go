@@ -32,8 +32,8 @@ type Db struct {
 	TranNum *int64
 	// 是否merge中
 	mergeIng bool
-	// 合并结果文件
-	mergeCompleteFile *data.FileData
+	// 合并记录列表
+	mergeCompleteFileId map[uint32]struct{}
 }
 
 func open(option option) (*Db, error) {
@@ -53,6 +53,13 @@ func open(option option) (*Db, error) {
 
 	// 初始化db
 	err := db.LoadDb()
+
+	if err != nil {
+		return nil, err
+	}
+
+	// 加载合并成功的记录数据
+	err = db.LoadMergeCompleteFileId()
 	if err != nil {
 		return nil, err
 	}
@@ -69,13 +76,13 @@ func open(option option) (*Db, error) {
 
 	// 读取非活动文件
 	for _, oldFileData := range db.oldFile {
-		// 判断hint文件是否存在 如果存在则读取hint文件
+		// 判断hint文件是存在且合并记录中有当前fileId 那么读取hint文件
 		_, err := os.Stat(db.option.DirPath + data.HintFileName)
-		if os.IsNotExist(err) {
-			_, err = readFileData(db, oldFileData)
-		} else {
+		if !os.IsNotExist(err) && db.mergeCompleteFileId[oldFileData.FileId] == struct{}{} {
 			// 读取hint文件，建立内存索引
 			err = db.LoadHintFile(oldFileData)
+		} else {
+			_, err = readFileData(db, oldFileData)
 		}
 
 		if err != nil && err == io.EOF {
@@ -528,6 +535,52 @@ func (db *Db) fold(fun func(key []byte, value []byte) bool) error {
 		}
 
 		iterate.Next()
+	}
+
+	return nil
+}
+
+func (db *Db) LoadMergeCompleteFileId() error {
+	_, err := os.Stat(db.option.DirPath + data.MergeFinishFileName)
+
+	if !os.IsNotExist(err) {
+		fileIo, err := fio.CreateFileIo(db.option.DirPath + data.MergeFinishFileName)
+
+		if err != nil {
+			return err
+		}
+
+		var offset int64 = 0
+
+		// 先读取第一个对象获取到合并成功的文件数
+		buffer := make([]byte, binary.MaxVarintLen64)
+		index := 0
+		readSize, err := fileIo.Read(offset, buffer)
+		index += readSize
+		offset += int64(readSize)
+
+		if err != nil {
+			return err
+		}
+
+		mergeCompleteFileId := make(map[uint32]struct{}, readSize)
+
+		// 序号遍历读取合并成功的文件id
+		componetSize, _ := binary.Varint(buffer[:index])
+		for i := 0; i < int(componetSize); i++ {
+			buffer = make([]byte, 0)
+			readSize, err := fileIo.Read(offset, buffer)
+			offset += int64(readSize)
+			if err != nil {
+				return err
+			}
+
+			fileId, _ := binary.Varint(buffer)
+
+			mergeCompleteFileId[uint32(fileId)] = struct{}{}
+		}
+
+		db.mergeCompleteFileId = mergeCompleteFileId
 	}
 
 	return nil
